@@ -99,7 +99,7 @@ static bool post_one_notification(struct watch_queue *wqueue,
 				  struct watch_notification *n)
 {
 	void *p;
-	struct pipe_inode_info *pipe = wqueue->pipe;
+	struct pipe_inode_info *pipe = READ_ONCE(wqueue->pipe);
 	struct pipe_buffer *buf;
 	struct page *page;
 	unsigned int head, tail, mask, note, offset, len;
@@ -635,6 +635,12 @@ void watch_queue_clear(struct watch_queue *wqueue)
 
 		put_watch(watch);
 		spin_lock_bh(&wqueue->lock);
+	}
+
+	/* Clearing the watch queue, so we should clean the associated pipe. */
+	if (wqueue->pipe) {
+		wqueue->pipe->watch_queue = NULL;
+		wqueue->pipe = NULL;
 	}
 
 	spin_unlock_bh(&wqueue->lock);
